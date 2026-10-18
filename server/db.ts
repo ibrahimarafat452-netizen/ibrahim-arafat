@@ -294,8 +294,16 @@ initDb();
 setTimeout(async () => {
   try {
     const remote = await loadDataFromFirestore();
-    if (remote && remote.users && remote.users.length > 0) {
+    if (remote) {
       let merged = false;
+      // Merge remote center settings if present in Firestore
+      if (remote.settings && typeof remote.settings === 'object') {
+        dbData.settings = {
+          ...dbData.settings,
+          ...remote.settings,
+        };
+        merged = true;
+      }
       // Merge any remote sessions that might be missing locally
       for (const rSess of (remote.sessions || [])) {
         if (!dbData.sessions.some(s => s.id === rSess.id)) {
@@ -323,7 +331,7 @@ setTimeout(async () => {
       }
       if (merged) {
         saveDb(false);
-        console.log('[Firebase] Successfully merged remote Firestore records into local cache.');
+        console.log('[Firebase] Successfully merged remote Firestore records and settings into local cache.');
       }
     }
   } catch (err) {
@@ -428,33 +436,80 @@ export const db = {
       if (existing.status === 'absent') {
         throw new Error('تم تسجيل هذا اليوم كغياب بالفعل. تواصل مع الإدارة للتعديل إذا لزم الأمر.');
       }
-      if (existing.status === 'present' || existing.status === 'checked_out') {
-        throw new Error('تم تسجيل الحضور لهذا اليوم مسبقاً.');
-      }
+      // If already present, allow updating checkInTime to the newly entered time
+      existing.checkInTime = time;
+      if (notes) existing.notes = notes;
+      existing.updatedAt = now;
+      saveDb();
+      persistAttendanceToFirestore(existing).catch(() => {});
+      return existing;
     }
 
     const newRecord: AttendanceRecord = {
-      id: existing?.id || `att_${crypto.randomUUID()}`,
+      id: `att_${crypto.randomUUID()}`,
       specialistId,
       date,
       status: 'present',
       checkInTime: time,
       checkOutTime: null,
-      notes: notes || existing?.notes || null,
+      notes: notes || null,
+      recordedAt: now,
+      updatedAt: now,
+    };
+
+    dbData.attendance.push(newRecord);
+    saveDb();
+    persistAttendanceToFirestore(newRecord).catch(() => {});
+    return newRecord;
+  },
+
+  setAttendanceTimes(
+    specialistId: string,
+    date: string,
+    checkInTime?: string | null,
+    checkOutTime?: string | null,
+    notes?: string,
+    forceStatus?: AttendanceStatus
+  ): AttendanceRecord {
+    let existing = dbData.attendance.find((a) => a.specialistId === specialistId && a.date === date);
+    const now = new Date().toISOString();
+
+    const finalCheckIn = checkInTime !== undefined ? checkInTime : (existing?.checkInTime || null);
+    const finalCheckOut = checkOutTime !== undefined ? checkOutTime : (existing?.checkOutTime || null);
+
+    let status: AttendanceStatus = forceStatus || 'present';
+    if (!forceStatus) {
+      if (finalCheckIn && finalCheckOut) {
+        status = 'checked_out';
+      } else if (finalCheckIn) {
+        status = 'present';
+      } else {
+        status = 'absent';
+      }
+    }
+
+    const record: AttendanceRecord = {
+      id: existing?.id || `att_${crypto.randomUUID()}`,
+      specialistId,
+      date,
+      status,
+      checkInTime: finalCheckIn,
+      checkOutTime: finalCheckOut,
+      notes: notes !== undefined ? notes : (existing?.notes || null),
       recordedAt: existing?.recordedAt || now,
       updatedAt: now,
     };
 
     if (existing) {
       const idx = dbData.attendance.indexOf(existing);
-      dbData.attendance[idx] = newRecord;
+      dbData.attendance[idx] = record;
     } else {
-      dbData.attendance.push(newRecord);
+      dbData.attendance.push(record);
     }
 
     saveDb();
-    persistAttendanceToFirestore(newRecord).catch(() => {});
-    return newRecord;
+    persistAttendanceToFirestore(record).catch(() => {});
+    return record;
   },
 
   recordCheckOut(specialistId: string, date: string, time: string): AttendanceRecord {

@@ -15,6 +15,9 @@ import {
   ChevronUp,
   Heart,
   AlertTriangle,
+  X,
+  Edit2,
+  RotateCcw,
 } from 'lucide-react';
 
 export const DailyMonitoring: React.FC = () => {
@@ -28,6 +31,15 @@ export const DailyMonitoring: React.FC = () => {
   const [search, setSearch] = useState('');
   const [expandedSpecialistId, setExpandedSpecialistId] = useState<string | null>(null);
 
+  // Attendance time writing & editing modal for manager
+  const [editingAttendanceItem, setEditingAttendanceItem] = useState<any | null>(null);
+  const [modalCheckInTime, setModalCheckInTime] = useState('');
+  const [modalCheckOutTime, setModalCheckOutTime] = useState('');
+  const [modalStatus, setModalStatus] = useState<string>('present');
+  const [modalNotes, setModalNotes] = useState('');
+  const [isSavingAttendance, setIsSavingAttendance] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+
   const fetchMonitoring = async (date: string, isBackground = false) => {
     try {
       if (!isBackground) setLoading(true);
@@ -39,6 +51,77 @@ export const DailyMonitoring: React.FC = () => {
       }
     } finally {
       if (!isBackground) setLoading(false);
+    }
+  };
+
+  const openAttendanceModal = (item: any) => {
+    setEditingAttendanceItem(item);
+    setModalCheckInTime(item.checkInTime ? item.checkInTime.slice(0, 5) : '');
+    setModalCheckOutTime(item.checkOutTime ? item.checkOutTime.slice(0, 5) : '');
+    setModalStatus(
+      item.statusDisplay === 'checked_out'
+        ? 'checked_out'
+        : item.statusDisplay === 'absent'
+        ? 'absent'
+        : item.statusDisplay === 'present'
+        ? 'present'
+        : 'present'
+    );
+    setModalNotes(item.absenceReason || item.attendance?.notes || '');
+  };
+
+  const setModalCurrentTimeIn = () => {
+    const now = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Africa/Cairo',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(new Date());
+    setModalCheckInTime(now);
+  };
+
+  const setModalCurrentTimeOut = () => {
+    const now = new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Africa/Cairo',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(new Date());
+    setModalCheckOutTime(now);
+  };
+
+  const handleSaveAttendanceModal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingAttendanceItem) return;
+
+    try {
+      setIsSavingAttendance(true);
+      setFeedbackMessage(null);
+
+      await managerApi.saveSpecialistAttendanceTimes({
+        specialistId: editingAttendanceItem.specialist.id,
+        date: selectedDate,
+        checkInTime: modalCheckInTime || undefined,
+        checkOutTime: modalCheckOutTime || undefined,
+        status: modalStatus,
+        notes: modalNotes.trim() || undefined,
+      });
+
+      setFeedbackMessage({
+        text: `تم حفظ مواعيد حضور وانصراف الأخصائي (${editingAttendanceItem.specialist.name}) بنجاح!`,
+        type: 'success',
+      });
+
+      setEditingAttendanceItem(null);
+      await fetchMonitoring(selectedDate);
+      setTimeout(() => setFeedbackMessage(null), 4000);
+    } catch (err: any) {
+      setFeedbackMessage({
+        text: err.message || 'فشل حفظ وتحديث مواعيد الحضور والانصراف',
+        type: 'error',
+      });
+    } finally {
+      setIsSavingAttendance(false);
     }
   };
 
@@ -92,6 +175,32 @@ export const DailyMonitoring: React.FC = () => {
           <span>تحديث لحظي</span>
         </button>
       </div>
+
+      {/* Feedback Message */}
+      {feedbackMessage && (
+        <div
+          className={`p-4 rounded-2xl text-xs sm:text-sm font-bold flex items-center justify-between shadow-xs ${
+            feedbackMessage.type === 'success'
+              ? 'bg-emerald-50 border border-emerald-200 text-emerald-900'
+              : 'bg-rose-50 border border-rose-200 text-rose-900'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            {feedbackMessage.type === 'success' ? (
+              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+            ) : (
+              <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
+            )}
+            <span>{feedbackMessage.text}</span>
+          </div>
+          <button
+            onClick={() => setFeedbackMessage(null)}
+            className="text-slate-400 hover:text-slate-600 cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Date & Filter controls */}
       <div className="bg-white rounded-3xl p-4 sm:p-5 shadow-xs border border-slate-100 flex flex-col md:flex-row items-center justify-between gap-4">
@@ -276,7 +385,7 @@ export const DailyMonitoring: React.FC = () => {
                   </div>
 
                   {/* Attendance & Session Metrics */}
-                  <div className="flex items-center gap-4 sm:gap-6 text-right shrink-0">
+                  <div className="flex items-center gap-3 sm:gap-4 text-right shrink-0 flex-wrap sm:flex-nowrap justify-end">
                     {/* Times */}
                     <div className="bg-slate-50 p-2.5 rounded-2xl border border-slate-100 text-center min-w-[120px]">
                       <div className="text-[10px] font-bold text-slate-400">سجل الدوام</div>
@@ -288,7 +397,7 @@ export const DailyMonitoring: React.FC = () => {
                     </div>
 
                     {/* Sessions Count & Duration */}
-                    <div className="bg-cyan-50/70 p-2.5 rounded-2xl border border-cyan-100 text-center min-w-[110px]">
+                    <div className="bg-cyan-50/70 p-2.5 rounded-2xl border border-cyan-100 text-center min-w-[100px]">
                       <div className="text-[10px] font-bold text-cyan-800">جلسات اليوم</div>
                       <div className="text-sm font-black text-cyan-950 mt-0.5">
                         {item.sessionsCount} جلسة
@@ -297,6 +406,17 @@ export const DailyMonitoring: React.FC = () => {
                         ({item.totalMinutes} دقيقة)
                       </div>
                     </div>
+
+                    {/* Button: Write & Edit Times for this specialist */}
+                    <button
+                      type="button"
+                      onClick={() => openAttendanceModal(item)}
+                      className="py-2.5 px-3.5 rounded-2xl bg-gradient-to-r from-teal-50 to-cyan-50 hover:from-teal-100 hover:to-cyan-100 text-cyan-900 border border-cyan-200/90 text-xs font-black flex items-center gap-1.5 cursor-pointer shadow-2xs hover:shadow-xs transition-all active:scale-95"
+                      title="كتابة أو تعديل موعد الحضور والانصراف يدوياً"
+                    >
+                      <Clock className="w-3.5 h-3.5 text-cyan-700" />
+                      <span>كتابة المواعيد</span>
+                    </button>
 
                     {/* Expand sessions toggle */}
                     <button
@@ -352,6 +472,154 @@ export const DailyMonitoring: React.FC = () => {
           })
         )}
       </div>
+
+      {/* Manager Attendance Time Writing & Editing Modal */}
+      {editingAttendanceItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs font-['Cairo',sans-serif]">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200 animate-scaleUp">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-teal-500 via-cyan-600 to-sky-600 px-6 py-4 flex items-center justify-between text-white">
+              <div className="flex items-center gap-2.5">
+                <Clock className="w-5 h-5 text-white" />
+                <div>
+                  <h3 className="text-base font-black">كتابة وتعديل مواعيد الحضور والانصراف</h3>
+                  <p className="text-xs text-cyan-100">
+                    الأخصائي: {editingAttendanceItem.specialist.name} ({editingAttendanceItem.specialist.specialization})
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingAttendanceItem(null)}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Form */}
+            <form onSubmit={handleSaveAttendanceModal} className="p-6 space-y-4">
+              <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 text-xs text-slate-700 flex items-center justify-between">
+                <span className="font-bold flex items-center gap-1.5">
+                  <Calendar className="w-4 h-4 text-cyan-600" />
+                  <span>تاريخ السجل:</span>
+                </span>
+                <span className="font-black text-slate-900">{selectedDate}</span>
+              </div>
+
+              {/* Time inputs grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {/* Check-in time */}
+                <div className="bg-teal-50/50 border border-teal-200/80 rounded-2xl p-3.5">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-black text-teal-900 flex items-center gap-1">
+                      <UserCheck className="w-3.5 h-3.5 text-teal-600" />
+                      <span>موعد الحضور *</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={setModalCurrentTimeIn}
+                      className="text-[10px] font-bold text-teal-800 bg-white hover:bg-teal-100 border border-teal-300 px-2 py-0.5 rounded-md cursor-pointer flex items-center gap-1"
+                    >
+                      <RotateCcw className="w-2.5 h-2.5" />
+                      <span>الآن</span>
+                    </button>
+                  </div>
+                  <input
+                    type="time"
+                    value={modalCheckInTime}
+                    onChange={(e) => setModalCheckInTime(e.target.value)}
+                    className="w-full text-center text-lg font-black tracking-wider bg-white border border-teal-300 rounded-xl py-2 px-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  />
+                  <div className="text-[11px] text-teal-800 font-bold mt-1 text-center">
+                    {modalCheckInTime ? formatArabicTime(modalCheckInTime) : 'لم يُحدد'}
+                  </div>
+                </div>
+
+                {/* Check-out time */}
+                <div className="bg-sky-50/50 border border-sky-200/80 rounded-2xl p-3.5">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-black text-sky-900 flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5 text-sky-600" />
+                      <span>موعد الانصراف</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={setModalCurrentTimeOut}
+                      className="text-[10px] font-bold text-sky-800 bg-white hover:bg-sky-100 border border-sky-300 px-2 py-0.5 rounded-md cursor-pointer flex items-center gap-1"
+                    >
+                      <RotateCcw className="w-2.5 h-2.5" />
+                      <span>الآن</span>
+                    </button>
+                  </div>
+                  <input
+                    type="time"
+                    value={modalCheckOutTime}
+                    onChange={(e) => setModalCheckOutTime(e.target.value)}
+                    className="w-full text-center text-lg font-black tracking-wider bg-white border border-sky-300 rounded-xl py-2 px-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                  />
+                  <div className="text-[11px] text-sky-800 font-bold mt-1 text-center">
+                    {modalCheckOutTime ? formatArabicTime(modalCheckOutTime) : 'اختياري / فارغ'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Status Select */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">حالة الحضور</label>
+                <select
+                  value={modalStatus}
+                  onChange={(e) => setModalStatus(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-slate-800 text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-cyan-500 bg-slate-50"
+                >
+                  <option value="present">حاضر وقيد العمل (تم تسجيل الحضور)</option>
+                  <option value="checked_out">أنهى العمل (تم تسجيل الحضور والانصراف)</option>
+                  <option value="absent">غائب (اعتذار رسمي)</option>
+                </select>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  ملاحظات أو سبب التأخير / الغياب (اختياري)
+                </label>
+                <input
+                  type="text"
+                  placeholder="ملاحظات توضيحية..."
+                  value={modalNotes}
+                  onChange={(e) => setModalNotes(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-slate-800 text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-cyan-500 bg-slate-50"
+                />
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex items-center gap-3 pt-3">
+                <button
+                  type="submit"
+                  disabled={isSavingAttendance}
+                  className="flex-1 py-3 px-5 rounded-2xl font-black text-sm text-white bg-gradient-to-r from-teal-500 via-cyan-600 to-sky-600 hover:from-teal-600 hover:to-sky-700 shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70"
+                >
+                  {isSavingAttendance ? (
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>حفظ وتثبيت المواعيد</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingAttendanceItem(null)}
+                  className="py-3 px-5 rounded-2xl font-bold text-xs sm:text-sm text-slate-600 bg-slate-100 hover:bg-slate-200 cursor-pointer"
+                >
+                  إلغاء
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

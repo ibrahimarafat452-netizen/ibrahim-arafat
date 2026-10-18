@@ -24,9 +24,20 @@ export function getFirestoreServer() {
     }
 
     const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-    const app = getApps().length === 0 ? initializeApp(config) : getApp();
-    firestoreInstance = getFirestore(app, config.firestoreDatabaseId);
-    console.log('[Firebase Server] Connected to Firestore database:', config.firestoreDatabaseId);
+    const firestoreProjectId = 'gen-lang-client-0560980802';
+    const firestoreDatabaseId = 'ai-studio-4fd5cba3-8f2c-4039-bacd-f62d0d692a24';
+    const firestoreConfig = {
+      ...config,
+      projectId: firestoreProjectId,
+      apiKey: config.projectId === firestoreProjectId ? config.apiKey : 'AIzaSyBoGt9EuiUl_GNfQ74EbHGq13D74HLTdek',
+      appId: config.projectId === firestoreProjectId ? config.appId : '1:502075967157:web:df5931759de500966be0fc',
+      authDomain: `${firestoreProjectId}.firebaseapp.com`,
+      firestoreDatabaseId,
+    };
+
+    const app = getApps().find((a) => a.name === 'firestoreApp') || initializeApp(firestoreConfig, 'firestoreApp');
+    firestoreInstance = getFirestore(app, firestoreDatabaseId);
+    console.log('[Firebase Server] Connected to Firestore database:', firestoreDatabaseId, 'on project:', firestoreProjectId);
     return firestoreInstance;
   } catch (err) {
     console.warn('[Firebase Server] Error initializing Firebase on server:', err);
@@ -138,25 +149,47 @@ export async function persistUserToFirestore(user: any) {
   }
 }
 
-// Load from Firestore on boot if local cache was wiped
 export async function loadDataFromFirestore() {
   const db = getFirestoreServer();
   if (!db) return null;
 
   try {
-    const [usersSnap, attendanceSnap, sessionsSnap, settingsSnap] = await Promise.all([
-      getDocs(collection(db, 'users')),
-      getDocs(collection(db, 'attendance')),
-      getDocs(collection(db, 'sessions')),
-      getDoc(doc(db, 'settings', 'center')),
-    ]);
+    let users: any[] = [];
+    let attendance: any[] = [];
+    let sessions: any[] = [];
+    let settings: any = null;
 
-    const users = usersSnap.docs.map((d) => d.data());
-    const attendance = attendanceSnap.docs.map((d) => d.data());
-    const sessions = sessionsSnap.docs.map((d) => d.data());
-    const settings = settingsSnap.exists() ? settingsSnap.data() : null;
+    try {
+      const usersSnap = await getDocs(collection(db, 'users'));
+      users = usersSnap.docs.map((d) => d.data());
+    } catch {
+      // Handled gracefully if list permission is restricted
+    }
 
-    if (users.length === 0 && !settings) {
+    try {
+      const attendanceSnap = await getDocs(collection(db, 'attendance'));
+      attendance = attendanceSnap.docs.map((d) => d.data());
+    } catch {
+      // Handled gracefully if list permission is restricted
+    }
+
+    try {
+      const sessionsSnap = await getDocs(collection(db, 'sessions'));
+      sessions = sessionsSnap.docs.map((d) => d.data());
+    } catch {
+      // Handled gracefully if list permission is restricted
+    }
+
+    try {
+      const settingsSnap = await getDoc(doc(db, 'settings', 'center'));
+      if (settingsSnap.exists()) {
+        settings = settingsSnap.data();
+      }
+    } catch {
+      // Handled gracefully
+    }
+
+    if (users.length === 0 && !settings && attendance.length === 0 && sessions.length === 0) {
       return null;
     }
 

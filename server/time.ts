@@ -32,6 +32,20 @@ export function getCairoCurrentTime(date: Date = new Date()): string {
 }
 
 /**
+ * Normalizes user-inputted time string (e.g. '09:30' or '9:30') to 'HH:mm:ss'
+ */
+export function normalizeTimeString(timeStr?: string | null): string | null {
+  if (!timeStr || !timeStr.trim()) return null;
+  const clean = timeStr.trim();
+  const parts = clean.split(':');
+  if (parts.length < 2) return clean;
+  const hh = parts[0].padStart(2, '0');
+  const mm = parts[1].padStart(2, '0');
+  const ss = parts[2] ? parts[2].padStart(2, '0') : '00';
+  return `${hh}:${mm}:${ss}`;
+}
+
+/**
  * Returns day of week in Cairo (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
  */
 export function getCairoDayOfWeek(date: Date = new Date()): number {

@@ -145,12 +145,35 @@
       "createdAt": "2026-10-17T18:34:19.469Z"
     }
   ],
-  "attendance": [],
-  "sessions": [],
+  "attendance": [
+    {
+      "id": "att_70c855a8-e625-4322-91b4-a32bbe0ac03a",
+      "specialistId": "spec_ff2ef094-7a13-4b3b-854d-60051d18d254",
+      "date": "2026-10-18",
+      "status": "checked_out",
+      "checkInTime": "09:15:00",
+      "checkOutTime": "14:30:00",
+      "notes": "تجربة كتابة المواعيد",
+      "recordedAt": "2026-10-18T10:46:18.355Z",
+      "updatedAt": "2026-10-18T10:46:18.355Z"
+    }
+  ],
+  "sessions": [
+    {
+      "id": "sess_72cc26df-1dbe-4286-90e0-594d3f654870",
+      "specialistId": "spec_ff2ef094-7a13-4b3b-854d-60051d18d254",
+      "date": "2026-10-18",
+      "childName": "جلسة تحقق تجريبية - TEST VERIFICATION RECORD",
+      "durationMinutes": 45,
+      "notes": "جلسة اختبارية آلية لفحص الحفظ في Firestore والنسخ المحلي",
+      "createdAt": "2026-10-18T10:16:39.828Z",
+      "updatedAt": "2026-10-18T10:16:39.828Z"
+    }
+  ],
   "settings": {
-    "centerName": "مركز بصمة أمل للتخاطب وتنمية المهارات",
+    "centerName": "مؤسسة الدكتورة نسيبه مرعي",
     "centerLogo": "sparkles",
-    "supervisorName": "د. منى عبد الرحمن - استشاري أمراض التخاطب والتوحد",
+    "supervisorName": "محمد عرفات - اخصائي أمراض التخاطب والتوحد",
     "workingDays": [
       0,
       1,
@@ -160,9 +183,9 @@
       6
     ],
     "workStartTime": "09:00",
-    "workEndTime": "16:00",
+    "workEndTime": "03:30",
     "missingAlertTime": "10:30",
-    "minDailySessionsTarget": 4
+    "minDailySessionsTarget": 15
   },
   "dismissedNotifications": []
 }

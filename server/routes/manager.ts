@@ -4,11 +4,18 @@ import { db, type User, type AttendanceRecord, type TherapySession } from '../db
 import { authenticate, requireManager, type AuthenticatedRequest } from '../auth.ts';
 import { getFirestoreServer, syncDatabaseToFirestore } from '../firebase.ts';
 import {
+  verifyGoogleTokenAndUser,
+  getOrCreateDedicatedBackupFolder,
+  uploadAndVerifyBackup,
+  listDriveBackups,
+} from '../drive.ts';
+import {
   getCairoTodayDate,
   getCairoCurrentTime,
   getCairoDayOfWeek,
   formatCairoArabicDate,
   ARABIC_DAYS_NAMES,
+  normalizeTimeString,
 } from '../time.ts';
 
 export const managerRouter = Router();
@@ -254,6 +261,36 @@ managerRouter.get('/daily-monitoring', (req: AuthenticatedRequest, res: Response
     });
   } catch (error: any) {
     return res.status(500).json({ error: error.message || 'فشل جلب بيانات المتابعة اليومية' });
+  }
+});
+
+// Manager: Save or update attendance times for any specialist
+managerRouter.post('/attendance/save-times', (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { specialistId, date, checkInTime, checkOutTime, status, notes } = req.body;
+    if (!specialistId || !date) {
+      return res.status(400).json({ error: 'معرف الأخصائي والتاريخ مطلوبان.' });
+    }
+
+    const formattedIn = checkInTime !== undefined ? (checkInTime ? normalizeTimeString(checkInTime) : null) : undefined;
+    const formattedOut = checkOutTime !== undefined ? (checkOutTime ? normalizeTimeString(checkOutTime) : null) : undefined;
+
+    const record = db.setAttendanceTimes(
+      specialistId,
+      date,
+      formattedIn,
+      formattedOut,
+      notes,
+      status
+    );
+
+    return res.json({
+      success: true,
+      message: 'تم حفظ وتحديث مواعيد حضور وانصراف الأخصائي بنجاح!',
+      record,
+    });
+  } catch (error: any) {
+    return res.status(400).json({ error: error.message || 'فشل تعديل مواعيد الحضور والانصراف' });
   }
 });
 
@@ -850,6 +887,86 @@ managerRouter.post('/firebase/sync', async (req: AuthenticatedRequest, res: Resp
     return res.status(500).json({ error: error.message || 'فشلت المزامنة مع Firebase' });
   }
 });
+
+// Google Drive Off-site Backup Endpoints
+managerRouter.post('/drive/verify', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const token = (req.headers['x-google-token'] as string) || req.body?.googleAccessToken;
+    if (!token) {
+      return res.status(400).json({ error: 'رمز مرور Google Drive مطلوب للتحقق.' });
+    }
+
+    const authCheck = await verifyGoogleTokenAndUser(token);
+    if (!authCheck.valid) {
+      return res.status(401).json({ error: authCheck.error || 'فشل التحقق من تصريح Google Drive.' });
+    }
+
+    const folder = await getOrCreateDedicatedBackupFolder(token);
+
+    return res.json({
+      success: true,
+      message: 'تم التحقق من الاتصال بمجلد Google Drive بنجاح!',
+      userEmail: authCheck.email,
+      userName: authCheck.name,
+      folderId: folder.folderId,
+      folderName: folder.folderName,
+      folderLink: folder.folderLink,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message || 'فشل التحقق من Google Drive' });
+  }
+});
+
+managerRouter.post('/drive/backup', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const token = (req.headers['x-google-token'] as string) || req.body?.googleAccessToken;
+    let folderId = req.body?.folderId;
+
+    if (!token) {
+      return res.status(400).json({ error: 'رمز مرور Google Drive مطلوب لتنفيذ النسخ الاحتياطي.' });
+    }
+
+    if (!folderId) {
+      const folderInfo = await getOrCreateDedicatedBackupFolder(token);
+      folderId = folderInfo.folderId;
+    }
+
+    const uploadResult = await uploadAndVerifyBackup(token, folderId);
+
+    return res.json({
+      success: true,
+      message: 'تم رفع النسخة الاحتياطية والتحقق من سلامتها في Google Drive بنجاح!',
+      backup: uploadResult,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message || 'فشل رفع النسخة الاحتياطية إلى Google Drive' });
+  }
+});
+
+managerRouter.get('/drive/list', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const token = (req.headers['x-google-token'] as string) || (req.query?.googleAccessToken as string);
+    let folderId = (req.query?.folderId as string);
+
+    if (!token) {
+      return res.status(400).json({ error: 'رمز مرور Google Drive مطلوب.' });
+    }
+
+    if (!folderId) {
+      const folderInfo = await getOrCreateDedicatedBackupFolder(token);
+      folderId = folderInfo.folderId;
+    }
+
+    const files = await listDriveBackups(token, folderId);
+    return res.json({
+      folderId,
+      backups: files,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ error: error.message || 'فشل جلب قائمة النسخ من Google Drive' });
+  }
+});
+
 
 
 

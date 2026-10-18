@@ -1,0 +1,191 @@
+{
+  "users": [
+    {
+      "id": "mo",
+      "phone": "0111464256",
+      "passwordHash": "$2b$10$lj23lD85no6RJZuDphqjm.lI3g/D2zZ4Kkhtp9OYQAA6dQy.CQGF.",
+      "name": "مدير المركز",
+      "role": "manager",
+      "specialization": "إدارة المركز والإشراف العام",
+      "workingDays": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        6
+      ],
+      "isActive": true,
+      "createdAt": "2026-10-17T11:11:45.997Z"
+    },
+    {
+      "name": "نهي عبدالرحمن",
+      "phone": "01093197855",
+      "passwordHash": "$2b$10$8wnOMYCEW0rErjyaRvdM4euqXlDWUwq8CKb/Y2xtW2r4lSpRyIX7O",
+      "role": "specialist",
+      "specialization": "أخصائي تنمية مهارات وصعوبات تعلم",
+      "workingDays": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        6
+      ],
+      "isActive": true,
+      "id": "spec_ff2ef094-7a13-4b3b-854d-60051d18d254",
+      "createdAt": "2026-10-17T18:29:14.601Z"
+    },
+    {
+      "name": "مريم عماد",
+      "phone": "01116394135",
+      "passwordHash": "$2b$10$.n9BK7dl.VLDQ6.LGI6ZbeasPrnVFs4l/wSfnJaoyb7Ctnx3HNp/O",
+      "role": "specialist",
+      "specialization": "أخصائي تخاطب ونطق",
+      "workingDays": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        6
+      ],
+      "isActive": true,
+      "id": "spec_f2e7e043-93bd-4c2c-b327-6dc5cebf8658",
+      "createdAt": "2026-10-17T18:29:49.527Z"
+    },
+    {
+      "name": "شيماء جمال",
+      "phone": "01013914976",
+      "passwordHash": "$2b$10$zEJzcWKyKpsFnT0RQFKkTO/HoLjE/PzO5t599py80qxnyNxvmnt8W",
+      "role": "specialist",
+      "specialization": "أخصائي تخاطب ونطق",
+      "workingDays": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        6
+      ],
+      "isActive": true,
+      "id": "spec_568a615b-51c2-48e1-b27c-da03d3e1d1cc",
+      "createdAt": "2026-10-17T18:30:31.258Z"
+    },
+    {
+      "name": "هدي سعيد",
+      "phone": "01149270400",
+      "passwordHash": "$2b$10$sjVxsHivnwNQcZHvEU2WmO/BFa56lB/uY/OvwesTSp6HusC1Wja9W",
+      "role": "specialist",
+      "specialization": "أخصائي تخاطب ونطق",
+      "workingDays": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        6
+      ],
+      "isActive": true,
+      "id": "spec_90e886ff-656e-4ffa-bd0a-0362a6aaf14f",
+      "createdAt": "2026-10-17T18:31:15.787Z"
+    },
+    {
+      "name": "شهد يحيي",
+      "phone": "01115943802",
+      "passwordHash": "$2b$10$ckMmWrQrj0TduA8T.2WaBusJ2Lzy4QOw9VwcUrNK7AHVxwdcl3m4G",
+      "role": "specialist",
+      "specialization": "أخصائي تخاطب ونطق",
+      "workingDays": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        6
+      ],
+      "isActive": true,
+      "id": "spec_77c64838-749b-4e76-a90f-d029c7974fcb",
+      "createdAt": "2026-10-17T18:32:13.395Z"
+    },
+    {
+      "name": "فاطمة سيد",
+      "phone": "01151736698",
+      "passwordHash": "$2b$10$fRN/5Ji3eGHX94bSBcYj5.1f4jgnnV7zP.aBkehAFSCMhRcE7HNoq",
+      "role": "specialist",
+      "specialization": "أخصائي تخاطب ونطق",
+      "workingDays": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        6
+      ],
+      "isActive": true,
+      "id": "spec_74bbecec-6273-41d9-bc6b-867540f1870a",
+      "createdAt": "2026-10-17T18:33:13.958Z"
+    },
+    {
+      "name": "ياسمين كمال",
+      "phone": "01105582159",
+      "passwordHash": "$2b$10$yu.NOT1QtgJYyP7hVLzhBO0iKmr7G4cZiyvyn0zsv9u.JSJE0viyC",
+      "role": "specialist",
+      "specialization": "أخصائي تخاطب ونطق",
+      "workingDays": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        6
+      ],
+      "isActive": true,
+      "id": "spec_39d612f1-a11b-4b12-9227-753cdc0a39ae",
+      "createdAt": "2026-10-17T18:34:19.469Z"
+    }
+  ],
+  "attendance": [
+    {
+      "id": "att_70c855a8-e625-4322-91b4-a32bbe0ac03a",
+      "specialistId": "spec_ff2ef094-7a13-4b3b-854d-60051d18d254",
+      "date": "2026-10-18",
+      "status": "checked_out",
+      "checkInTime": "09:15:00",
+      "checkOutTime": "14:30:00",
+      "notes": "تجربة كتابة المواعيد",
+      "recordedAt": "2026-10-18T10:46:18.355Z",
+      "updatedAt": "2026-10-18T10:46:18.355Z"
+    }
+  ],
+  "sessions": [
+    {
+      "id": "sess_72cc26df-1dbe-4286-90e0-594d3f654870",
+      "specialistId": "spec_ff2ef094-7a13-4b3b-854d-60051d18d254",
+      "date": "2026-10-18",
+      "childName": "جلسة تحقق تجريبية - TEST VERIFICATION RECORD",
+      "durationMinutes": 45,
+      "notes": "جلسة اختبارية آلية لفحص الحفظ في Firestore والنسخ المحلي",
+      "createdAt": "2026-10-18T10:16:39.828Z",
+      "updatedAt": "2026-10-18T10:16:39.828Z"
+    }
+  ],
+  "settings": {
+    "centerName": "مؤسسة الدكتورة نسيبه مرعي",
+    "centerLogo": "sparkles",
+    "supervisorName": "محمد عرفات - اخصائي أمراض التخاطب والتوحد",
+    "workingDays": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      6
+    ],
+    "workStartTime": "09:00",
+    "workEndTime": "03:30",
+    "missingAlertTime": "10:30",
+    "minDailySessionsTarget": 15
+  },
+  "dismissedNotifications": []
+}

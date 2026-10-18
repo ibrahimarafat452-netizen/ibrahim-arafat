@@ -1,7 +1,7 @@
 import { Router, type Response } from 'express';
 import { db } from '../db.ts';
 import { authenticate, requireSpecialist, type AuthenticatedRequest } from '../auth.ts';
-import { getCairoTodayDate, getCairoCurrentTime, formatCairoArabicDate } from '../time.ts';
+import { getCairoTodayDate, getCairoCurrentTime, formatCairoArabicDate, normalizeTimeString } from '../time.ts';
 
 export const specialistRouter = Router();
 
@@ -42,10 +42,10 @@ specialistRouter.post('/attendance/check-in', (req: AuthenticatedRequest, res: R
   try {
     const specialistId = req.user!.id;
     const today = getCairoTodayDate();
-    const cairoTime = getCairoCurrentTime();
-    const { notes } = req.body;
+    const { notes, time, checkInTime } = req.body;
+    const effectiveTime = normalizeTimeString(checkInTime || time) || getCairoCurrentTime();
 
-    const record = db.recordCheckIn(specialistId, today, cairoTime, notes);
+    const record = db.recordCheckIn(specialistId, today, effectiveTime, notes);
 
     return res.json({
       success: true,
@@ -62,9 +62,10 @@ specialistRouter.post('/attendance/check-out', (req: AuthenticatedRequest, res: 
   try {
     const specialistId = req.user!.id;
     const today = getCairoTodayDate();
-    const cairoTime = getCairoCurrentTime();
+    const { time, checkOutTime } = req.body;
+    const effectiveTime = normalizeTimeString(checkOutTime || time) || getCairoCurrentTime();
 
-    const record = db.recordCheckOut(specialistId, today, cairoTime);
+    const record = db.recordCheckOut(specialistId, today, effectiveTime);
 
     return res.json({
       success: true,
@@ -73,6 +74,33 @@ specialistRouter.post('/attendance/check-out', (req: AuthenticatedRequest, res: 
     });
   } catch (error: any) {
     return res.status(400).json({ error: error.message || 'فشل تسجيل الانصراف' });
+  }
+});
+
+// Save custom attendance times (check-in and/or check-out)
+specialistRouter.post('/attendance/save-times', (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const specialistId = req.user!.id;
+    const today = getCairoTodayDate();
+    const { date, checkInTime, checkOutTime, notes } = req.body;
+
+    const targetDate = date || today;
+    const formattedIn = checkInTime !== undefined ? (checkInTime ? normalizeTimeString(checkInTime) : null) : undefined;
+    const formattedOut = checkOutTime !== undefined ? (checkOutTime ? normalizeTimeString(checkOutTime) : null) : undefined;
+
+    if (formattedIn === undefined && formattedOut === undefined) {
+      return res.status(400).json({ error: 'يرجى إدخال وقت الحضور أو وقت الانصراف.' });
+    }
+
+    const record = db.setAttendanceTimes(specialistId, targetDate, formattedIn, formattedOut, notes);
+
+    return res.json({
+      success: true,
+      message: 'تم حفظ وتثبيت مواعيد الحضور والانصراف بنجاح!',
+      record,
+    });
+  } catch (error: any) {
+    return res.status(400).json({ error: error.message || 'فشل حفظ مواعيد الحضور والانصراف' });
   }
 });
 

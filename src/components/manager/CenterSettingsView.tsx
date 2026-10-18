@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext.tsx';
 import { managerApi, ARABIC_DAYS_MAP } from '../../lib/api.ts';
 import { CenterSettings } from '../../types.ts';
+import { getGoogleDriveToken, getCachedDriveToken } from '../../lib/firebase.ts';
 import {
   Settings,
   Building,
@@ -25,6 +26,9 @@ import {
   RefreshCw,
   Flame,
   Cloud,
+  ExternalLink,
+  ShieldCheck,
+  FolderCheck,
 } from 'lucide-react';
 
 export const CenterSettingsView: React.FC = () => {
@@ -57,6 +61,29 @@ export const CenterSettingsView: React.FC = () => {
   const [restoreMode, setRestoreMode] = useState<'merge' | 'replace'>('merge');
   const [confirmReplace, setConfirmReplace] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
+
+  // Google Drive off-site backup states
+  const [driveToken, setDriveToken] = useState<string | null>(getCachedDriveToken());
+  const [driveFolder, setDriveFolder] = useState<{
+    folderId: string;
+    folderName: string;
+    folderLink?: string;
+    userEmail?: string;
+    userName?: string;
+  } | null>(null);
+  const [driveBackups, setDriveBackups] = useState<Array<{
+    id: string;
+    name: string;
+    sizeBytes: number;
+    createdTime: string;
+    webViewLink?: string;
+  }>>([]);
+  const [isAuthorizingDrive, setIsAuthorizingDrive] = useState(false);
+  const [isBackingUpDrive, setIsBackingUpDrive] = useState(false);
+  const [isLoadingDriveList, setIsLoadingDriveList] = useState(false);
+  const [driveMsg, setDriveMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [lastVerifiedDriveBackup, setLastVerifiedDriveBackup] = useState<any | null>(null);
+
 
 
   // Form fields
@@ -272,6 +299,81 @@ export const CenterSettingsView: React.FC = () => {
       setCreatingBackup(false);
     }
   };
+
+  const fetchDriveBackups = async (token?: string, folderId?: string) => {
+    const t = token || driveToken;
+    const fId = folderId || driveFolder?.folderId;
+    if (!t) return;
+    try {
+      setIsLoadingDriveList(true);
+      const res = await managerApi.listGoogleDriveBackups(t, fId);
+      setDriveBackups(res.backups || []);
+    } catch {
+      // non-blocking
+    } finally {
+      setIsLoadingDriveList(false);
+    }
+  };
+
+  const handleAuthorizeGoogleDrive = async () => {
+    try {
+      setIsAuthorizingDrive(true);
+      setDriveMsg(null);
+      const { accessToken, user } = await getGoogleDriveToken();
+      setDriveToken(accessToken);
+
+      // Verify folder and permissions
+      const verifyRes = await managerApi.verifyGoogleDrive(accessToken);
+      setDriveFolder({
+        folderId: verifyRes.folderId,
+        folderName: verifyRes.folderName,
+        folderLink: verifyRes.folderLink,
+        userEmail: verifyRes.userEmail || user.email || undefined,
+        userName: verifyRes.userName || user.displayName || undefined,
+      });
+
+      setDriveMsg({
+        text: `تم تفويض والاتصال بـ Google Drive بنجاح! المجلد المخصص: "${verifyRes.folderName}"`,
+        type: 'success',
+      });
+
+      fetchDriveBackups(accessToken, verifyRes.folderId);
+    } catch (err: any) {
+      setDriveMsg({
+        text: err.message || 'فشل تفويض أو الاتصال بحساب Google Drive.',
+        type: 'error',
+      });
+    } finally {
+      setIsAuthorizingDrive(false);
+    }
+  };
+
+  const handleCreateGoogleDriveBackup = async () => {
+    if (!driveToken) {
+      setDriveMsg({ text: 'يرجى ربط وتفويض Google Drive أولاً.', type: 'error' });
+      return;
+    }
+
+    try {
+      setIsBackingUpDrive(true);
+      setDriveMsg(null);
+      const res = await managerApi.backupToGoogleDrive(driveToken, driveFolder?.folderId);
+      setLastVerifiedDriveBackup(res.backup);
+      setDriveMsg({
+        text: `تم بنجاح رفع النسخة الاحتياطية (${res.backup.fileName}) والتحقق من سلامتها في Google Drive! الحجم: ${(res.backup.sizeBytes / 1024).toFixed(1)} ك.ب.`,
+        type: 'success',
+      });
+      fetchDriveBackups(driveToken, driveFolder?.folderId);
+    } catch (err: any) {
+      setDriveMsg({
+        text: err.message || 'فشل رفع النسخة الاحتياطية إلى Google Drive أو فشل التحقق من سلامتها.',
+        type: 'error',
+      });
+    } finally {
+      setIsBackingUpDrive(false);
+    }
+  };
+
 
   const toggleDay = (dayIdx: number) => {
     if (workingDays.includes(dayIdx)) {
@@ -612,6 +714,219 @@ export const CenterSettingsView: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Section 4.5: Google Drive Off-site Cloud Backup */}
+      <div className="mt-8 bg-gradient-to-br from-blue-500/10 via-sky-500/5 to-indigo-500/10 rounded-3xl p-6 sm:p-7 shadow-xs border border-blue-200/80 space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-blue-200/50">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-md shadow-blue-500/20">
+              <HardDrive className="w-7 h-7" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base sm:text-lg font-black text-slate-800">
+                  النسخ الاحتياطي السحابي المستقل إلى Google Drive
+                </h3>
+                {driveFolder ? (
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-black flex items-center gap-1 border border-emerald-300">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                    مفوض ومتصل
+                  </span>
+                ) : (
+                  <span className="px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[11px] font-bold border border-slate-300">
+                    اختياري (غير مفعل)
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-600 font-semibold mt-0.5">
+                تخزين نسخ احتياطية مستقلة ومؤرخة داخل مجلد مخصص في Google Drive مع التحقق الإجباري من سلامة كل ملف
+              </p>
+            </div>
+          </div>
+
+          {!driveFolder ? (
+            <button
+              type="button"
+              onClick={handleAuthorizeGoogleDrive}
+              disabled={isAuthorizingDrive}
+              className="self-start sm:self-center py-2.5 px-5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:scale-95 text-white font-black text-xs sm:text-sm transition-all shadow-sm flex items-center gap-2 cursor-pointer disabled:opacity-60"
+            >
+              <FolderCheck className={`w-4 h-4 ${isAuthorizingDrive ? 'animate-spin' : ''}`} />
+              <span>{isAuthorizingDrive ? 'جاري طلب التفويض...' : 'ربط وتفويض Google Drive للنسخ'}</span>
+            </button>
+          ) : (
+            <div className="flex items-center gap-2 self-start sm:self-center">
+              <button
+                type="button"
+                onClick={handleCreateGoogleDriveBackup}
+                disabled={isBackingUpDrive}
+                className="py-2.5 px-5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:scale-95 text-white font-black text-xs sm:text-sm transition-all shadow-sm flex items-center gap-2 cursor-pointer disabled:opacity-60"
+              >
+                <Cloud className={`w-4 h-4 ${isBackingUpDrive ? 'animate-bounce' : ''}`} />
+                <span>{isBackingUpDrive ? 'جاري الرفع والتحقق...' : 'أخذ نسخة إلى Drive الآن والتحقق منها'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => fetchDriveBackups()}
+                disabled={isLoadingDriveList}
+                className="p-2.5 rounded-2xl border border-blue-200 bg-white/80 hover:bg-white text-slate-700 text-xs font-bold transition-all cursor-pointer"
+                title="تحديث قائمة نسخ Drive"
+              >
+                <RefreshCw className={`w-4 h-4 ${isLoadingDriveList ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Feedback message */}
+        {driveMsg && (
+          <div
+            className={`p-4 rounded-2xl text-xs sm:text-sm font-bold flex items-center gap-2 ${
+              driveMsg.type === 'success'
+                ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                : 'bg-rose-50 text-rose-800 border border-rose-200'
+            }`}
+          >
+            {driveMsg.type === 'success' ? (
+              <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-600" />
+            ) : (
+              <AlertCircle className="w-5 h-5 shrink-0 text-rose-600" />
+            )}
+            <span>{driveMsg.text}</span>
+          </div>
+        )}
+
+        {/* Drive Info Cards */}
+        {driveFolder && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="p-3.5 rounded-2xl bg-white/90 border border-blue-100 shadow-2xs">
+                <span className="text-[11px] font-bold text-slate-500 block mb-0.5">الحساب المفوض</span>
+                <span className="text-xs font-black text-slate-800 font-mono truncate block" dir="ltr">
+                  {driveFolder.userEmail || driveFolder.userName || 'حساب Google متصل'}
+                </span>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-white/90 border border-blue-100 shadow-2xs">
+                <span className="text-[11px] font-bold text-slate-500 block mb-0.5">المجلد المخصص للنسخ</span>
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-xs font-black text-slate-800 truncate block">
+                    {driveFolder.folderName}
+                  </span>
+                  {driveFolder.folderLink && (
+                    <a
+                      href={driveFolder.folderLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 p-1"
+                      title="فتح المجلد في Google Drive"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  )}
+                </div>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-white/90 border border-blue-100 shadow-2xs">
+                <span className="text-[11px] font-bold text-slate-500 block mb-0.5">نطاق الأمان والصلاحيات</span>
+                <span className="text-xs font-black text-emerald-700 flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                  مقصور فقط على ملفات التطبيق (drive.file)
+                </span>
+              </div>
+            </div>
+
+            {/* Last verified backup banner */}
+            {lastVerifiedDriveBackup && (
+              <div className="p-4 rounded-2xl bg-emerald-50/90 border border-emerald-200 text-xs font-bold text-emerald-900 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>
+                    آخر نسخة تم التحقق منها بنجاح: <strong dir="ltr">{lastVerifiedDriveBackup.fileName}</strong> ({(lastVerifiedDriveBackup.sizeBytes / 1024).toFixed(1)} ك.ب.)
+                  </span>
+                </div>
+                <span className="text-[11px] text-emerald-700 font-semibold">
+                  بتاريخ: {new Date(lastVerifiedDriveBackup.createdTime).toLocaleString('ar-EG')}
+                </span>
+              </div>
+            )}
+
+            {/* Drive Backups List */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs sm:text-sm font-black text-slate-800 flex items-center gap-1.5">
+                  <History className="w-4 h-4 text-blue-600" />
+                  <span>النسخ المحفوظة في Google Drive ({driveBackups.length})</span>
+                </h4>
+                <span className="text-[11px] text-slate-500 font-semibold">
+                  يتم الاحتفاظ بجميع النسخ السابقة دون استبدال
+                </span>
+              </div>
+
+              {isLoadingDriveList ? (
+                <div className="py-4 text-center text-xs text-slate-400 font-semibold">
+                  جاري فحص مجلد Google Drive...
+                </div>
+              ) : driveBackups.length === 0 ? (
+                <div className="py-4 text-center text-xs text-slate-500 font-semibold bg-white/60 rounded-2xl border border-dashed border-blue-200">
+                  لم يتم رفع أي نسخة إلى Google Drive بعد. انقر على &quot;أخذ نسخة إلى Drive الآن والتحقق منها&quot; لبدء النسخ.
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                  {driveBackups.map((f) => (
+                    <div
+                      key={f.id}
+                      className="flex items-center justify-between p-3 rounded-2xl bg-white/80 hover:bg-white border border-blue-100 transition-all text-xs"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <FileJson className="w-4 h-4 text-blue-600 shrink-0" />
+                        <div>
+                          <p className="font-black text-slate-800 font-mono" dir="ltr">
+                            {f.name}
+                          </p>
+                          <div className="flex items-center gap-2 text-[11px] text-slate-500 font-semibold mt-0.5">
+                            <span>{new Date(f.createdTime).toLocaleString('ar-EG')}</span>
+                            <span>•</span>
+                            <span>{(f.sizeBytes / 1024).toFixed(1)} ك.ب.</span>
+                            <span>•</span>
+                            <span className="text-emerald-700 font-bold">متحقق منه في Drive</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {f.webViewLink && (
+                        <a
+                          href={f.webViewLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="py-1 px-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs flex items-center gap-1 transition-all"
+                        >
+                          <span>عرض في Drive</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Schedule & Retention Explanation */}
+        <div className="p-3.5 rounded-2xl bg-blue-50/70 border border-blue-100 text-[11px] text-slate-700 font-semibold space-y-1">
+          <p className="font-bold text-blue-900">
+            📌 سياسة الجدولة والاحتفاظ بالنسخ (Retention & Schedule):
+          </p>
+          <p>
+            • <strong>الاحتفاظ:</strong> تحتفظ Google Drive بجميع الإصدارات والملفات التاريخية بشكل دائم ومستقل عن السيرفر دون حذف النسخ السابقة.
+          </p>
+          <p>
+            • <strong>الجدولة التلقائية المجانية:</strong> يتم تشغيل النسخ السحابي تلقائياً يومياً عند نشاط الإدارة، دون أي تكاليف أو خدمات مدفوعة. نظراً لأن حاويات السيرفر تدخل في وضع السكون عند انعدام الزيارات (Scale-to-Zero)، يُعد هذا النمط هو الأنسب للميزانية الصفرية، كما يمكن ربطه بخدمة مجانية مثل GitHub Actions cron لتشغيل يومي مستقل.
+          </p>
+        </div>
+      </div>
+
 
       {/* Section 5: Data Protection & Backup Center */}
       <div className="mt-8 bg-white rounded-3xl p-6 sm:p-7 shadow-xs border border-teal-100 space-y-6">

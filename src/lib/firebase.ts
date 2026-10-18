@@ -29,10 +29,25 @@ export interface FirestoreErrorInfo {
   };
 }
 
-export const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+export const FIRESTORE_PROJECT_ID = 'gen-lang-client-0560980802';
+export const FIRESTORE_DATABASE_ID = 'ai-studio-4fd5cba3-8f2c-4039-bacd-f62d0d692a24';
+
+const firestoreConfig = {
+  ...firebaseConfig,
+  projectId: FIRESTORE_PROJECT_ID,
+  apiKey: firebaseConfig.projectId === FIRESTORE_PROJECT_ID ? firebaseConfig.apiKey : 'AIzaSyBoGt9EuiUl_GNfQ74EbHGq13D74HLTdek',
+  appId: firebaseConfig.projectId === FIRESTORE_PROJECT_ID ? firebaseConfig.appId : '1:502075967157:web:df5931759de500966be0fc',
+  authDomain: `${FIRESTORE_PROJECT_ID}.firebaseapp.com`,
+  firestoreDatabaseId: FIRESTORE_DATABASE_ID,
+};
+
+// Initialize default app for Auth & Google Drive OAuth
+export const app = getApps().find((a) => a.name === '[DEFAULT]') || initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-// CRITICAL: Must pass firestoreDatabaseId to getFirestore
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+
+// Initialize dedicated app for Firestore to connect to user's database
+export const firestoreApp = getApps().find((a) => a.name === 'firestoreApp') || initializeApp(firestoreConfig, 'firestoreApp');
+export const db = getFirestore(firestoreApp, FIRESTORE_DATABASE_ID);
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null): never {
   const errInfo: FirestoreErrorInfo = {
@@ -84,6 +99,29 @@ export async function signInWithGoogle(): Promise<FirebaseUser> {
 
 export async function signOutFirebase(): Promise<void> {
   await fbSignOut(auth);
+  cachedDriveToken = null;
+}
+
+let cachedDriveToken: string | null = null;
+
+export async function getGoogleDriveToken(): Promise<{ user: FirebaseUser; accessToken: string }> {
+  const provider = new GoogleAuthProvider();
+  provider.addScope('https://www.googleapis.com/auth/drive.file');
+  provider.setCustomParameters({ prompt: 'select_account' });
+  const result = await signInWithPopup(auth, provider);
+  const credential = GoogleAuthProvider.credentialFromResult(result);
+  if (!credential?.accessToken) {
+    throw new Error('لم يتم استلام تصريح الوصول إلى Google Drive من حساب Google');
+  }
+  cachedDriveToken = credential.accessToken;
+  return {
+    user: result.user,
+    accessToken: credential.accessToken,
+  };
+}
+
+export function getCachedDriveToken(): string | null {
+  return cachedDriveToken;
 }
 
 // Client-side Firestore Sync Helper

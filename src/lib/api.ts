@@ -132,20 +132,30 @@ export const specialistApi = {
       settings: CenterSettings;
     }>('/api/specialist/today'),
 
-  checkIn: (notes?: string) =>
+  checkIn: (data?: { checkInTime?: string; notes?: string }) =>
     fetchApi<{ success: boolean; message: string; record: AttendanceRecord }>(
       '/api/specialist/attendance/check-in',
       {
         method: 'POST',
-        body: JSON.stringify({ notes }),
+        body: JSON.stringify(data || {}),
       }
     ),
 
-  checkOut: () =>
+  checkOut: (data?: { checkOutTime?: string }) =>
     fetchApi<{ success: boolean; message: string; record: AttendanceRecord }>(
       '/api/specialist/attendance/check-out',
       {
         method: 'POST',
+        body: JSON.stringify(data || {}),
+      }
+    ),
+
+  saveAttendanceTimes: (data: { date?: string; checkInTime?: string; checkOutTime?: string; notes?: string }) =>
+    fetchApi<{ success: boolean; message: string; record: AttendanceRecord }>(
+      '/api/specialist/attendance/save-times',
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
       }
     ),
 
@@ -240,6 +250,22 @@ export const managerApi = {
         sessions: TherapySession[];
       }>;
     }>(`/api/manager/daily-monitoring${date ? `?date=${date}` : ''}`),
+
+  saveSpecialistAttendanceTimes: (data: {
+    specialistId: string;
+    date: string;
+    checkInTime?: string;
+    checkOutTime?: string;
+    status?: string;
+    notes?: string;
+  }) =>
+    fetchApi<{ success: boolean; message: string; record: AttendanceRecord }>(
+      '/api/manager/attendance/save-times',
+      {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }
+    ),
 
   getSpecialists: () =>
     fetchApi<{
@@ -435,6 +461,59 @@ export const managerApi = {
       };
     }>('/api/manager/firebase/sync', {
       method: 'POST',
+    }),
+
+  verifyGoogleDrive: (googleAccessToken: string) =>
+    fetchApi<{
+      success: boolean;
+      message: string;
+      userEmail?: string;
+      userName?: string;
+      folderId: string;
+      folderName: string;
+      folderLink?: string;
+    }>('/api/manager/drive/verify', {
+      method: 'POST',
+      headers: { 'x-google-token': googleAccessToken },
+      body: JSON.stringify({ googleAccessToken }),
+    }),
+
+  backupToGoogleDrive: (googleAccessToken: string, folderId?: string) =>
+    fetchApi<{
+      success: boolean;
+      message: string;
+      backup: {
+        fileId: string;
+        fileName: string;
+        folderId: string;
+        sizeBytes: number;
+        createdTime: string;
+        md5Checksum?: string;
+        verified: boolean;
+        stats: {
+          usersCount: number;
+          sessionsCount: number;
+          attendanceCount: number;
+        };
+      };
+    }>('/api/manager/drive/backup', {
+      method: 'POST',
+      headers: { 'x-google-token': googleAccessToken },
+      body: JSON.stringify({ googleAccessToken, folderId }),
+    }),
+
+  listGoogleDriveBackups: (googleAccessToken: string, folderId?: string) =>
+    fetchApi<{
+      folderId: string;
+      backups: Array<{
+        id: string;
+        name: string;
+        sizeBytes: number;
+        createdTime: string;
+        webViewLink?: string;
+      }>;
+    }>(`/api/manager/drive/list${folderId ? `?folderId=${encodeURIComponent(folderId)}` : ''}`, {
+      headers: { 'x-google-token': googleAccessToken },
     }),
 };
 
