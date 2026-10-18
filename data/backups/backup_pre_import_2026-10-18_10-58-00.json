@@ -1,0 +1,42 @@
+{
+  "users": [
+    {
+      "id": "mo",
+      "phone": "0111464256",
+      "passwordHash": "$2b$10$lj23lD85no6RJZuDphqjm.lI3g/D2zZ4Kkhtp9OYQAA6dQy.CQGF.",
+      "name": "مدير المركز",
+      "role": "manager",
+      "specialization": "إدارة المركز والإشراف العام",
+      "workingDays": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        6
+      ],
+      "isActive": true,
+      "createdAt": "2026-10-17T11:11:45.997Z"
+    }
+  ],
+  "attendance": [],
+  "sessions": [],
+  "settings": {
+    "centerName": "مركز بصمة أمل للتخاطب وتنمية المهارات",
+    "centerLogo": "sparkles",
+    "supervisorName": "د. منى عبد الرحمن - استشاري أمراض التخاطب والتوحد",
+    "workingDays": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      6
+    ],
+    "workStartTime": "09:00",
+    "workEndTime": "16:00",
+    "missingAlertTime": "10:30",
+    "minDailySessionsTarget": 4
+  },
+  "dismissedNotifications": []
+}

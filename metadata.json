@@ -1,0 +1,8 @@
+{
+  "name": "مؤسسة الدكتورة نسيبه مرعي",
+  "description": "منصة شاملة ومبهجة لإدارة أخصائيي مركز التخاطب وتنمية المهارات، تسجيل الحضور وجلسات الأطفال والتقارير والإحصائيات بتوقيت القاهرة.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,0 +1,206 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile representing a manager or specialist in the center",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique user ID",
+          "maxLength": 128
+        },
+        "name": {
+          "type": "string",
+          "description": "Full name of the user",
+          "maxLength": 100
+        },
+        "phone": {
+          "type": "string",
+          "description": "Egyptian or standard mobile phone number",
+          "maxLength": 20
+        },
+        "role": {
+          "type": "string",
+          "description": "Role of the user in the system",
+          "enum": ["manager", "specialist"]
+        },
+        "specialization": {
+          "type": "string",
+          "description": "Specialization field (e.g., Speech Therapy, Skill Development)",
+          "maxLength": 100
+        },
+        "isActive": {
+          "type": "boolean",
+          "description": "Whether the user account is active"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp of creation",
+          "maxLength": 50
+        }
+      },
+      "required": ["id", "name", "phone", "role", "isActive", "createdAt"]
+    },
+    "AttendanceRecord": {
+      "title": "AttendanceRecord",
+      "description": "Daily attendance record for a specialist",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique attendance record ID",
+          "maxLength": 128
+        },
+        "specialistId": {
+          "type": "string",
+          "description": "User ID of the specialist",
+          "maxLength": 128
+        },
+        "date": {
+          "type": "string",
+          "description": "Date of attendance in YYYY-MM-DD format (Cairo timezone)",
+          "maxLength": 10
+        },
+        "status": {
+          "type": "string",
+          "description": "Attendance status",
+          "enum": ["present", "checked_out", "absent"]
+        },
+        "checkInTime": {
+          "type": "string",
+          "description": "Check-in time in HH:mm:ss format",
+          "maxLength": 20
+        },
+        "checkOutTime": {
+          "type": "string",
+          "description": "Check-out time in HH:mm:ss format",
+          "maxLength": 20
+        },
+        "notes": {
+          "type": "string",
+          "description": "Optional notes or excuses",
+          "maxLength": 500
+        },
+        "recordedAt": {
+          "type": "string",
+          "description": "Timestamp when attendance was recorded",
+          "maxLength": 50
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when attendance was last updated",
+          "maxLength": 50
+        }
+      },
+      "required": ["id", "specialistId", "date", "status", "recordedAt", "updatedAt"]
+    },
+    "TherapySession": {
+      "title": "TherapySession",
+      "description": "Speech therapy or skill training session with a child",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique session ID",
+          "maxLength": 128
+        },
+        "specialistId": {
+          "type": "string",
+          "description": "Specialist ID who delivered the session",
+          "maxLength": 128
+        },
+        "date": {
+          "type": "string",
+          "description": "Date in YYYY-MM-DD format",
+          "maxLength": 10
+        },
+        "childName": {
+          "type": "string",
+          "description": "Name of the child receiving therapy",
+          "maxLength": 100
+        },
+        "durationMinutes": {
+          "type": "number",
+          "description": "Duration of session in minutes"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Clinical or behavioral observations",
+          "maxLength": 1000
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Creation timestamp",
+          "maxLength": 50
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Last update timestamp",
+          "maxLength": 50
+        }
+      },
+      "required": ["id", "specialistId", "date", "childName", "durationMinutes", "createdAt", "updatedAt"]
+    },
+    "CenterSettings": {
+      "title": "CenterSettings",
+      "description": "Global configuration and operational rules for the speech therapy center",
+      "type": "object",
+      "properties": {
+        "centerName": {
+          "type": "string",
+          "description": "Name of the center",
+          "maxLength": 150
+        },
+        "centerLogo": {
+          "type": "string",
+          "description": "Logo URL or SVG identifier",
+          "maxLength": 500
+        },
+        "supervisorName": {
+          "type": "string",
+          "description": "Supervisor or director name",
+          "maxLength": 100
+        },
+        "workStartTime": {
+          "type": "string",
+          "description": "Official start time (HH:mm)",
+          "maxLength": 10
+        },
+        "workEndTime": {
+          "type": "string",
+          "description": "Official end time (HH:mm)",
+          "maxLength": 10
+        },
+        "missingAlertTime": {
+          "type": "string",
+          "description": "Time when late/missing alerts trigger (HH:mm)",
+          "maxLength": 10
+        },
+        "minDailySessionsTarget": {
+          "type": "number",
+          "description": "Target number of daily sessions per specialist"
+        }
+      },
+      "required": ["centerName", "supervisorName", "workStartTime", "workEndTime", "missingAlertTime", "minDailySessionsTarget"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Profiles of managers and specialists"
+    },
+    "/attendance/{attendanceId}": {
+      "schema": "AttendanceRecord",
+      "description": "Specialists daily attendance and checkout logs"
+    },
+    "/sessions/{sessionId}": {
+      "schema": "TherapySession",
+      "description": "Individual child therapy sessions"
+    },
+    "/settings/center": {
+      "schema": "CenterSettings",
+      "description": "Singleton center configuration"
+    }
+  }
+}

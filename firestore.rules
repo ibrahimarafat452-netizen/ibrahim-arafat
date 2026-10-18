@@ -1,0 +1,100 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net: default-deny all undefined paths
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Connectivity verification document
+    match /test/{docId} {
+      allow read, write: if true;
+    }
+
+    // Helper functions
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Entity Validation Helpers
+    function isValidUser(data) {
+      return data.keys().hasAll(['id', 'name', 'phone', 'role', 'isActive', 'createdAt']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+        data.phone is string && data.phone.size() <= 20 &&
+        data.role in ['manager', 'specialist'] &&
+        data.isActive is bool &&
+        data.createdAt is string && data.createdAt.size() <= 50;
+    }
+
+    function isValidAttendance(data) {
+      return data.keys().hasAll(['id', 'specialistId', 'date', 'status', 'recordedAt', 'updatedAt']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.specialistId is string && data.specialistId.size() <= 128 &&
+        data.date is string && data.date.size() == 10 &&
+        data.status in ['present', 'checked_out', 'absent'] &&
+        data.recordedAt is string && data.recordedAt.size() <= 50 &&
+        data.updatedAt is string && data.updatedAt.size() <= 50 &&
+        (!('notes' in data) || data.notes == null || (data.notes is string && data.notes.size() <= 500));
+    }
+
+    function isValidSession(data) {
+      return data.keys().hasAll(['id', 'specialistId', 'date', 'childName', 'durationMinutes', 'createdAt', 'updatedAt']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.specialistId is string && data.specialistId.size() <= 128 &&
+        data.date is string && data.date.size() == 10 &&
+        data.childName is string && data.childName.size() > 0 && data.childName.size() <= 100 &&
+        data.durationMinutes is number && data.durationMinutes > 0 && data.durationMinutes <= 300 &&
+        data.createdAt is string && data.createdAt.size() <= 50 &&
+        data.updatedAt is string && data.updatedAt.size() <= 50 &&
+        (!('notes' in data) || data.notes == null || (data.notes is string && data.notes.size() <= 1000));
+    }
+
+    function isValidSettings(data) {
+      return data.keys().hasAll(['centerName', 'supervisorName', 'workStartTime', 'workEndTime', 'missingAlertTime', 'minDailySessionsTarget']) &&
+        data.centerName is string && data.centerName.size() <= 150 &&
+        data.supervisorName is string && data.supervisorName.size() <= 100 &&
+        data.workStartTime is string && data.workStartTime.size() <= 10 &&
+        data.workEndTime is string && data.workEndTime.size() <= 10 &&
+        data.missingAlertTime is string && data.missingAlertTime.size() <= 10 &&
+        data.minDailySessionsTarget is number && data.minDailySessionsTarget >= 0;
+    }
+
+    // Users Collection
+    match /users/{userId} {
+      allow read: if isValidId(userId);
+      allow create, update: if isValidId(userId) && isValidUser(incoming());
+      allow delete: if false; // Soft deactivate only
+    }
+
+    // Attendance Collection
+    match /attendance/{attendanceId} {
+      allow read: if isValidId(attendanceId);
+      allow create, update: if isValidId(attendanceId) && isValidAttendance(incoming());
+      allow delete: if isValidId(attendanceId);
+    }
+
+    // Therapy Sessions Collection
+    match /sessions/{sessionId} {
+      allow read: if isValidId(sessionId);
+      allow create, update: if isValidId(sessionId) && isValidSession(incoming());
+      allow delete: if isValidId(sessionId);
+    }
+
+    // Center Settings (Singleton document)
+    match /settings/{settingDoc} {
+      allow read: if true;
+      allow create, update: if isValidSettings(incoming());
+      allow delete: if false;
+    }
+  }
+}
